@@ -12,13 +12,13 @@ class NeuralNetwork:
         return 1. / (1. + math.exp(-x))
 
     @staticmethod
-    def dsigmoid(sigmoid_value):
+    def dsigmoid(x):
         """
         Derivative of sigmoid function
-        :param sigmoid_value: sigmoid(x)
+        :param x: argument
         :return: derivative of sigmoid(x)
         """
-        return sigmoid_value * (1 - sigmoid_value)
+        return NeuralNetwork.sigmoid(x) * (1 - NeuralNetwork.sigmoid(x))
 
     def __init__(self, input, hidden_layers, output):
         """
@@ -34,6 +34,7 @@ class NeuralNetwork:
             raise ValueError
         self.layers = list(map(int, [len(self.input[0]), *self.hidden_layers, len(self.output[0])]))
         self.activations = [[0 for _ in range(self.layers[i])] for i in range(len(self.layers))]
+        self.dactivations = [[0 for _ in range(self.layers[i])] for i in range(len(self.layers))]
         self.weights = [[[random.uniform(-5, 5) for _ in range(self.layers[i + 1])] for j in range(self.layers[i])]
                         for i in range(len(self.layers) - 1)]
 
@@ -46,13 +47,14 @@ class NeuralNetwork:
         if len(arbitrary_input) != self.layers[0]:
             raise ValueError
         for i in range(len(arbitrary_input)):
-            self.activations[0][i] = arbitrary_input[i]
+            self.activations[0][i] = self.dactivations[0][i] = arbitrary_input[i]
         for i in range(len(self.layers) - 1):
             for j in range(self.layers[i + 1]):
                 s = 0
                 for k in range(self.layers[i]):
                     s += self.activations[i][k] * self.weights[i][k][j]
                 self.activations[i + 1][j] = NeuralNetwork.sigmoid(s)
+                self.dactivations[i + 1][j] = NeuralNetwork.dsigmoid(s)
         return self.activations[-1]
 
     def back_propagation(self, target, learning_rate):
@@ -68,13 +70,13 @@ class NeuralNetwork:
         # hidden -> output
         o = len(self.layers) - 1
         for i in range(self.layers[o]):
-            delta[o][i] = (target[i] - self.activations[o][i]) * NeuralNetwork.dsigmoid(self.activations[o][i])
+            delta[o][i] = (target[i] - self.activations[o][i]) * self.dactivations[o][i]
         # input and hidden -> hidden
         for i in range(len(self.layers) - 2, 0, -1):
             for j in range(self.layers[i]):
                 for k in range(self.layers[i + 1]):
                     delta[i][j] += delta[i + 1][k] * self.weights[i][j][k]
-                delta[i][j] *= NeuralNetwork.dsigmoid(self.activations[i][j])
+                delta[i][j] *= self.dactivations[i][j]
         # update weights
         for i in range(len(self.layers) - 1):
             for j in range(self.layers[i]):
@@ -97,40 +99,3 @@ class NeuralNetwork:
         for i in range(iterations):
             self.update(self.input[i % k])
             self.back_propagation(self.output[i % k], learning_rate)
-
-
-if __name__ == '__main__':
-    print('XOR FUNCTION APPROXIMATION')
-    n = 8
-    input = [[0, 0, 0], [0, 0, 1], [0, 1, 0], [0, 1, 1], [1, 0, 0], [1, 0, 1], [1, 1, 0], [1, 1, 1]]
-    output = [[0], [1], [1], [0], [1], [0], [0], [1]]
-    network = NeuralNetwork(input, [4, 4], output)
-    network.train(2000 * n - 1, 0.5)
-    net_result = []
-    error = 0
-    for i in range(n):
-        temp = network.update(input[i])
-        error = max(error, abs(temp[0] - output[i][0]))
-        net_result.append(temp[0])
-    print('Expected results:', output)
-    print('Actual results:', net_result)
-    print('Maximum error:', error)
-    print('Weights:', network.weights)
-    print('\n\n')
-    print('[SIN(X) + 1] / 2 FUNCTION APPROXIMATION, 0 <= X <= 2PI')
-    n = 20
-    dx = 2 * math.pi / (n - 1)
-    input = [[round(i * dx, 4), 1] for i in range(n)]
-    output = [[(math.sin(i * dx) + 1) / 2] for i in range(n)]
-    network = NeuralNetwork(input, [6, 6, 6], output)
-    network.train(650 * n - 1, 0.5)
-    net_result = []
-    error = 0
-    for i in range(n):
-        temp = network.update(input[i])
-        error = max(error, abs(temp[0] - output[i][0]))
-        net_result.append(temp[0])
-    print('Expected results:', output)
-    print('Actual results:', net_result)
-    print('Maximum error:', error)
-    print('Weights:', network.weights)

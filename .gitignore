@@ -13,3 +13,4 @@
 ### Object ###
 *.o
 *.obj
+*.pyc
